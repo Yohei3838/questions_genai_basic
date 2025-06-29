@@ -1,40 +1,66 @@
 import streamlit as st
 import pandas as pd
+import random
 
-# CSV読み込み
+# データ読み込み
 df = pd.read_csv("questions_genai_basic.csv")
+
+# セッション管理
+if 'q_idx' not in st.session_state:
+    st.session_state.q_idx = 0
+if 'score' not in st.session_state:
+    st.session_state.score = 0
+if 'answered' not in st.session_state:
+    st.session_state.answered = False
+if 'shuffle_options' not in st.session_state:
+    st.session_state.shuffle_options = []
+
+total = len(df)
+current = st.session_state.q_idx
+row = df.iloc[current]
 
 st.title("Google GenAI Leader 基礎・用語クイズ")
 
-score = 0
-user_answers = []
-st.write("全20問、各問題の選択肢から正しいものを選んでください。")
+st.write(f"**{current + 1} / {total} 問目**　｜　現在のスコア：{st.session_state.score}")
 
-# 問題ループ
-for i, row in df.iterrows():
-    st.markdown(f"**Q{i+1}: {row['question']}**")
+# 選択肢のシャッフルロジック
+if (not st.session_state.shuffle_options) or (st.session_state.q_idx != st.session_state.get('prev_q_idx', -1)):
     options = [row['choice1'], row['choice2'], row['choice3'], row['choice4']]
-    user_choice = st.radio(
-        f"選択してください（Q{i+1}）:",
-        options,
-        key=f"q_{i}"
-    )
-    user_answers.append(user_choice)
+    option_indices = list(range(4))
+    random.shuffle(option_indices)
+    shuffled_options = [options[i] for i in option_indices]
+    correct_index = option_indices.index(int(row['answer']) - 1)
+    st.session_state.shuffle_options = shuffled_options
+    st.session_state.correct_index = correct_index
+    st.session_state.prev_q_idx = current
+else:
+    shuffled_options = st.session_state.shuffle_options
+    correct_index = st.session_state.correct_index
 
-# 結果表示ボタン
-if st.button("採点する"):
-    score = 0
-    st.markdown("---")
-    st.subheader("解答結果・解説")
-    for i, row in df.iterrows():
-        answer_idx = int(row["answer"]) - 1
-        correct = options[answer_idx]
-        user_choice = user_answers[i]
-        if user_choice == options[answer_idx]:
-            st.success(f"Q{i+1}：正解！")
-            score += 1
+user_choice = st.radio("選択肢:", shuffled_options, key=f"radio_{current}")
+
+if not st.session_state.answered:
+    if st.button("回答する"):
+        if user_choice == shuffled_options[correct_index]:
+            st.success("正解！")
+            st.session_state.score += 1
         else:
-            st.error(f"Q{i+1}：不正解（あなたの回答：{user_choice} / 正解：{options[answer_idx]}）")
+            st.error(f"不正解... 正解は「{shuffled_options[correct_index]}」です。")
         st.info(f"解説：{row['explanation']}")
-        st.markdown("---")
-    st.subheader(f"最終スコア： {score} / {len(df)}")
+        st.session_state.answered = True
+
+if st.session_state.answered:
+    if st.button("次の問題へ"):
+        if current + 1 < total:
+            st.session_state.q_idx += 1
+            st.session_state.answered = False
+            st.session_state.shuffle_options = []
+            st.experimental_rerun()
+        else:
+            st.success(f"全{total}問終了！最終スコア：{st.session_state.score} / {total}")
+            if st.button("もう一度やる"):
+                st.session_state.q_idx = 0
+                st.session_state.score = 0
+                st.session_state.answered = False
+                st.session_state.shuffle_options = []
+                st.experimental_rerun()
