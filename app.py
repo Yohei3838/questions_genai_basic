@@ -23,7 +23,10 @@ st.title("Google GenAI Leader 基礎・用語クイズ")
 
 st.write(f"**{current + 1} / {total} 問目**　｜　現在のスコア：{st.session_state.score}")
 
-# 選択肢のシャッフルロジック
+# 1. 問題文の表示
+st.markdown(f"### Q{current + 1}: {row['question']}")
+
+# 2. 選択肢のシャッフル
 if (not st.session_state.shuffle_options) or (st.session_state.q_idx != st.session_state.get('prev_q_idx', -1)):
     options = [row['choice1'], row['choice2'], row['choice3'], row['choice4']]
     option_indices = list(range(4))
@@ -37,8 +40,10 @@ else:
     shuffled_options = st.session_state.shuffle_options
     correct_index = st.session_state.correct_index
 
+# 3. 選択肢の表示
 user_choice = st.radio("選択肢:", shuffled_options, key=f"radio_{current}")
 
+# 4. 回答判定と解説
 if not st.session_state.answered:
     if st.button("回答する"):
         if user_choice == shuffled_options[correct_index]:
@@ -49,6 +54,7 @@ if not st.session_state.answered:
         st.info(f"解説：{row['explanation']}")
         st.session_state.answered = True
 
+# 5. 次の問題へ
 if st.session_state.answered:
     if st.button("次の問題へ"):
         if current + 1 < total:
